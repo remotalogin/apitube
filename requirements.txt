@@ -1,4 +1,4 @@
-Flask
+flask
 requests
 pycryptodome
-youtube-search-python
+youtube-search
