@@ -5,7 +5,7 @@ import requests
 import base64
 import json
 from Crypto.Cipher import AES
-from youtube_search import YoutubeSearch
+import re
 
 app = Flask(__name__)
 
@@ -25,8 +25,7 @@ def clean_cache():
             del metadata_cache[k]
 
 def get_youtube_video_id(url):
-    import re
-    regex = r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|v\/|embed\/|user\/[^\/\n\s]+\/)?(?:watch\?v=|v%3D|embed%2F|video%2F)?|youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/|youtube\.com\/playlist\?list=)([a-zA-Z0-9_-]{11})'
+    regex = r'(?:v=|\/)([0-9A-Za-z_-]{11}).*'
     match = re.search(regex, url)
     return match.group(1) if match else None
 
@@ -53,7 +52,7 @@ def savetube(link, quality, type_):
 
         infoget_resp = requests.post(f'https://{cdn}/v2/info', json={'url': link}, headers={
             'User-Agent': 'Mozilla/5.0',
-            'Referer': 'https://yt.savetube.me/1kejjj1?id=362796039'
+            'Referer': 'https://yt.savetube.me/'
         })
         infoget = infoget_resp.json()
         info = decode(infoget.get('data', ''))
@@ -65,7 +64,7 @@ def savetube(link, quality, type_):
         }, headers={
             'Content-Type': 'application/json',
             'User-Agent': 'Mozilla/5.0',
-            'Referer': 'https://yt.savetube.me/start-download?from=1kejjj1%3Fid%3D362796039'
+            'Referer': 'https://yt.savetube.me/'
         })
 
         response = download_resp.json()
@@ -83,39 +82,13 @@ def savetube(link, quality, type_):
         }
     except Exception as e:
         print('SaveTube error:', str(e))
-        return {'status': False, 'message': 'Converting error'}
-
-def search(name):
-    clean_cache()
-    now = time.time()
-    if name in search_cache and now - search_cache[name]['timestamp'] < 3600:
-        return search_cache[name]['data']
-
-    results = YoutubeSearch(name, max_results=1).to_dict()
-    if not results:
-        return {'ok': False, 'msg': 'Não encontrei nenhuma música.'}
-    result = {'ok': True, 'criador': 'Hiudy', 'data': results[0]}
-    search_cache[name] = {'data': result, 'timestamp': now}
-    return result
+        return {'status': False, 'message': 'Erro ao converter'}
 
 def download_audio(url, quality=128):
     clean_cache()
     id_ = get_youtube_video_id(url)
     if not id_:
         return {'ok': False, 'msg': 'URL inválida'}
-    now = time.time()
-
-    cache_key = f"meta:{id_}"
-    meta = None
-    if cache_key in metadata_cache and now - metadata_cache[cache_key]['timestamp'] < 1800:
-        meta = metadata_cache[cache_key]['data']
-
-    if not meta:
-        search_result = search(f'https://youtube.com/watch?v={id_}')
-        if not search_result['ok']:
-            return {'ok': False, 'msg': 'Erro ao buscar metadados'}
-        meta = search_result['data']
-        metadata_cache[cache_key] = {'data': meta, 'timestamp': now}
 
     if quality not in AUDIO_QUALITIES:
         quality = 128
@@ -140,19 +113,6 @@ def download_video(url, quality=360):
     id_ = get_youtube_video_id(url)
     if not id_:
         return {'ok': False, 'msg': 'URL inválida'}
-    now = time.time()
-
-    cache_key = f"meta:{id_}"
-    meta = None
-    if cache_key in metadata_cache and now - metadata_cache[cache_key]['timestamp'] < 1800:
-        meta = metadata_cache[cache_key]['data']
-
-    if not meta:
-        search_result = search(f'https://youtube.com/watch?v={id_}')
-        if not search_result['ok']:
-            return {'ok': False, 'msg': 'Erro ao buscar metadados'}
-        meta = search_result['data']
-        metadata_cache[cache_key] = {'data': meta, 'timestamp': now}
 
     if quality not in VIDEO_QUALITIES:
         quality = 360
@@ -172,18 +132,8 @@ def download_video(url, quality=360):
         'availableQuality': VIDEO_QUALITIES
     }
 
-# Flask routes
-
-@app.route('/search', methods=['GET'])
-def api_search():
-    term = request.args.get('term')
-    if not term:
-        return jsonify({'ok': False, 'msg': 'Termo de busca não fornecido'}), 400
-    result = search(term)
-    return jsonify(result)
-
-@app.route('/download/audio', methods=['GET'])
-def api_download_audio():
+@app.route('/download/audio')
+def route_audio():
     url = request.args.get('url')
     quality = int(request.args.get('quality', 128))
     if not url:
@@ -193,8 +143,8 @@ def api_download_audio():
         return jsonify(result), 400
     return send_file(BytesIO(result['buffer']), download_name=result['filename'], as_attachment=True)
 
-@app.route('/download/video', methods=['GET'])
-def api_download_video():
+@app.route('/download/video')
+def route_video():
     url = request.args.get('url')
     quality = int(request.args.get('quality', 360))
     if not url:
@@ -205,4 +155,4 @@ def api_download_video():
     return send_file(BytesIO(result['buffer']), download_name=result['filename'], as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
