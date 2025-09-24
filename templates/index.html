@@ -1,15 +1,86 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Baixar do YouTube</title>
+  <meta charset="UTF-8" />
+  <title>Download de Áudio YouTube</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+    }
+    input, button, select {
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    #result {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      display: none;
+    }
+    a.download-link {
+      display: block;
+      margin-top: 0.5rem;
+      color: green;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-  <h1>Download YouTube Audio</h1>
-  <form method="post" action="/api/youtube/audio">
-    <input type="text" name="url" placeholder="URL do YouTube" />
-    <input type="number" name="quality" value="128" />
-    <button type="submit">Baixar</button>
+  <h1>Download de Áudio YouTube</h1>
+  <form id="download-form">
+    <label for="url">URL do vídeo YouTube:</label><br />
+    <input type="text" id="url" name="url" placeholder="https://youtube.com/watch?v=..." size="50" required />
+    <br /><br />
+    <label for="quality">Qualidade (kbps):</label>
+    <select id="quality" name="quality">
+      <option value="92">92</option>
+      <option value="128" selected>128</option>
+      <option value="256">256</option>
+      <option value="320">320</option>
+    </select>
+    <br /><br />
+    <button type="submit">Baixar Áudio</button>
   </form>
-</body>
-</html>
+
+  <div id="result"></div>
+
+  <script>
+    const form = document.getElementById('download-form');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      resultDiv.style.display = 'none';
+      resultDiv.textContent = 'Processando...';
+
+      const url = document.getElementById('url').value;
+      const quality = document.getElementById('quality').value;
+
+      try {
+        const response = await fetch('/api/download_audio', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url, quality: parseInt(quality) })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          resultDiv.textContent = 'Erro: ' + (error.error || 'Erro desconhecido');
+          resultDiv.style.color = 'red';
+          resultDiv.style.display = 'block';
+          return;
+        }
+
+        const data = await response.json();
+
+        let html = `<strong>Arquivo:</strong> ${data.filename}<br />`;
+        html += `<strong>Qualidade:</strong> ${data.quality}<br />`;
+
+        if (data.download_url) {
+          html += `<a href="${data.download_url}" class="download-link" target="_blank" download>Download direto do arquivo</a>`;
+        } else {
+          html += `<
