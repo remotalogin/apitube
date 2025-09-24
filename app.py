@@ -1,15 +1,13 @@
 from flask import Flask, request, jsonify, send_file
 from io import BytesIO
 import time
-
-# Importa as funções do seu script (ou cole aqui dentro)
-# Vou colocar aqui direto para simplificar
-
 import requests
 import base64
 import json
 from Crypto.Cipher import AES
 from youtube_search import YoutubeSearch
+
+app = Flask(__name__)
 
 AUDIO_QUALITIES = [92, 128, 256, 320]
 VIDEO_QUALITIES = [144, 360, 480, 720, 1080]
@@ -171,4 +169,40 @@ def download_video(url, quality=360):
         'buffer': buffer,
         'filename': result['filename'],
         'quality': result['quality'],
-        'availableQuality':
+        'availableQuality': VIDEO_QUALITIES
+    }
+
+# Flask routes
+
+@app.route('/search', methods=['GET'])
+def api_search():
+    term = request.args.get('term')
+    if not term:
+        return jsonify({'ok': False, 'msg': 'Termo de busca não fornecido'}), 400
+    result = search(term)
+    return jsonify(result)
+
+@app.route('/download/audio', methods=['GET'])
+def api_download_audio():
+    url = request.args.get('url')
+    quality = int(request.args.get('quality', 128))
+    if not url:
+        return jsonify({'ok': False, 'msg': 'URL não fornecida'}), 400
+    result = download_audio(url, quality)
+    if not result['ok']:
+        return jsonify(result), 400
+    return send_file(BytesIO(result['buffer']), download_name=result['filename'], as_attachment=True)
+
+@app.route('/download/video', methods=['GET'])
+def api_download_video():
+    url = request.args.get('url')
+    quality = int(request.args.get('quality', 360))
+    if not url:
+        return jsonify({'ok': False, 'msg': 'URL não fornecida'}), 400
+    result = download_video(url, quality)
+    if not result['ok']:
+        return jsonify(result), 400
+    return send_file(BytesIO(result['buffer']), download_name=result['filename'], as_attachment=True)
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
