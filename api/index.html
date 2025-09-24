@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Downloader de YouTube</title>
+</head>
+<body>
+  <h1>Download YouTube</h1>
+  <form id="form">
+    <input type="text" id="url" placeholder="URL do vídeo" required />
+    <select id="type">
+      <option value="audio">Áudio (MP3)</option>
+      <option value="video">Vídeo (MP4)</option>
+    </select>
+    <button type="submit">Baixar</button>
+  </form>
+  <script>
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('url').value;
+      const type = document.getElementById('type').value;
+      const res = await fetch(`/download/${type}?url=${encodeURIComponent(url)}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = "download." + (type === 'audio' ? 'mp3' : 'mp4');
+        a.click();
+      } else {
+        alert('Erro ao baixar');
+      }
+    });
+  </script>
+</body>
+</html>
